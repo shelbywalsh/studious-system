@@ -1,0 +1,246 @@
+---
+title: "econ_hw_3"
+author: "Shelby Walsh"
+date: "5/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(stargazer)
+```
+
+```{r}
+hw_3_data <- read_csv("Homework 3 Data (2).csv")
+```
+
+```{r}
+mwtpl <- hw_3_data$Price_Dollars
+mwtph <- hw_3_data$Price_Dollars
+ql <- hw_3_data$Q_Low_Gallons
+qh <- hw_3_data$Q_High_Gallons
+```
+
+```{r}
+plot(x = ql, y = mwtpl, xlim = c(0,500000), ylim = c(0,13))
+plot(x = qh, y = mwtph, xlim = c(0,500000), ylim = c(0,13))
+```
+```{r}
+low_data <- tibble(MWTP_L = mwtpl, Q_L = ql)
+lm_low <- lm(formula = MWTP_L ~ Q_L, data = low_data)
+
+lm_low
+```
+```{r}
+coef <- as.numeric(lm_low$coefficients)
+y_l <- coef [1]
+s_l <- coef [2]
+```
+
+```{r}
+high_data <- tibble(MWTP_H = mwtph, Q_H = qh)
+lm_high <- lm(formula = MWTP_H ~ Q_H, data = high_data)
+
+lm_high
+```
+
+```{r}
+coef <- as.numeric(lm_high$coefficients)
+y_h <- coef [1]
+s_h <- coef [2]
+```
+
+```{r}
+low_data <- low_data %>% 
+  mutate(MWTP = y_l + s_l*Q_L)
+
+high_data <- high_data %>% 
+  mutate(MWTP = y_h + s_h*Q_H)
+```
+
+```{r}
+ggplot(data = low_data, aes(x = Q_L, y = MWTP_L), color = "darkorange") +
+  geom_line(data = low_data, aes(x = Q_L, y = MWTP), color = "darkorange")+
+  geom_point(data = high_data, aes(x = Q_H, y = MWTP_H), color = "darkgreen") +
+  geom_line(data = high_data, aes(x = Q_H, y = MWTP), color = "darkgreen")
+```
+
+```{r}
+p_eq = 3
+Q_L = (p_eq - y_l)/s_l
+Q_H = (p_eq - y_h)/s_h
+Q_eq = Q_L + Q_H
+```
+
+benefit to producers
+
+```{r}
+integrand.produce <- function(x) {(p_eq/Q_eq)*x}
+integral.produce <- integrate(integrand.produce, 0, Q_eq)
+benefit_produce_1 <- (p_eq*Q_eq) - as.numeric(integral.produce$value)
+  
+```
+
+Benefit to low consumers
+
+```{r}
+integrand.low <- function(x) {y_l + s_l*x}
+integral.low <- integrate(integrand.low, 0, Q_L)
+benefit_low_1 <-as.numeric(integral.low$value) - p_eq * Q_L
+```
+
+Benefit to high consumers
+
+```{r}
+integrand.high <- function(x) {y_h + s_h*x}
+integral.high <- integrate(integrand.high, 0, Q_H)
+benefit_high_1 <-as.numeric(integral.high$value) - p_eq * Q_H
+```
+
+benefit for consumers
+
+```{r}
+benefit_consumer_1 = benefit_low_1 + benefit_high_1
+```
+
+local: 1.5
+global: 0.5
+
+```{r}
+env_cost_local_1 = Q_eq*1.5
+env_global_1 = Q_eq*0.5
+
+tibble(benefit_produce_1, benefit_low_1, benefit_high_1, benefit_consumer_1,env_cost_local_1, env_global_1)
+```
+
+
+Tax
+
+```{r}
+t = 1
+Q_eq_2 = ((s_h/(s_h + s_l)*y_l) + (s_l/(s_h +s_l)*y_h) - t) / ((p_eq/Q_eq) - (s_h*s_l)/(s_h +s_l))
+P_eq_2 = (p_eq/Q_eq)*Q_eq_2 + t 
+Q_L_2 = (P_eq_2 - y_l)/s_l
+Q_H_2 = (P_eq_2 - y_h)/s_h
+```
+
+```{r}
+integrand.produce <- function(x) {(p_eq/Q_eq)*x + t}
+integral.produce <- integrate (integrand.produce, 0, Q_eq_2)
+benefit_produce_2 <- (P_eq_2*Q_eq_2)- as.numeric(integral.produce$value)
+```
+
+```{r}
+integrand.low <- function(x) {y_l + s_l*x}
+integral.low <- integrate(integrand.low, 0, Q_L_2)
+benefit_low_2 <-as.numeric(integral.low$value) - P_eq_2 * Q_L_2
+```
+
+```{r}
+integrand.high <- function(x) {y_h + s_h*x}
+integral.high <- integrate(integrand.high, 0, Q_H_2)
+benefit_high_2 <-as.numeric(integral.high$value) - P_eq_2 * Q_H_2
+```
+
+```{r}
+benefit_consumer_2 = benefit_low_2 + benefit_high_2
+```
+
+```{r}
+env_cost_local_2 = Q_eq_2*1.5
+env_global_2 = Q_eq_2*0.5
+```
+
+```{r}
+tax_rev_1 = Q_eq_2*t
+
+tibble(Q_eq_2,P_eq_2, Q_L_2, Q_H_2, benefit_produce_2, benefit_low_2, benefit_high_2, benefit_consumer_2, env_cost_local_2, env_global_2,  tax_rev_1)
+```
+
+Question 4
+
+
+proprtion low and high
+```{r}
+p_low = Q_L/Q_eq
+p_high = Q_H/ Q_eq
+```
+
+variables that will change with tax adjustments
+
+```{r}
+tax <- seq(0,5, by = 0.25)
+gas_produce <- c()
+gas_price <- c()
+welfare_low <- c()
+welfare_high <- c()
+welfare_produce <- c()
+
+```
+
+```{r}
+for (i in 1:length(tax)) {
+  Q_eq_4 = ((s_h/ (s_h + s_l)*y_l) + (s_l/(s_h + s_l)*y_h) - tax[i])/ ((p_eq/Q_eq)- (s_h*s_l)/(s_h + s_l))
+  P_eq_4 = (p_eq/Q_eq)*Q_eq_4 + tax[i]
+  
+  gas_produce[i] <- Q_eq_4
+  gas_price[i] <- P_eq_4
+  
+  Q_L_4 = (P_eq_4- y_l)/s_l
+  Q_H_4 = (P_eq_4 - y_h)/s_h
+  
+  integrand.produce <- function(x) {(p_eq/Q_eq)*x + tax[i]}
+integral.produce <- integrate (integrand.produce, 0, Q_eq_4)
+welfare_produce[i] <- (P_eq_4*Q_eq_4)- as.numeric(integral.produce$value)
+
+tax_rev_4 = Q_eq_4*tax[i]
+
+local_dam_4 = Q_eq_4*1.5
+
+integrand.high <- function(x) {y_h + s_h*x}
+integral.high <- integrate(integrand.high, 0, Q_H_4)
+welfare_high[i] <- as.numeric(integral.high$value) - P_eq_4*Q_H_4 + tax_rev_4*p_high
+
+integrand.low <- function(x) {y_l + s_l*x}
+integral.low <- integrate(integrand.low, 0, Q_L_4)
+welfare_low[i] <-as.numeric(integral.low$value) - (P_eq_4*Q_L_4) + (tax_rev_4*p_low) - local_dam_4
+
+}
+
+results_4 <- tibble(tax, gas_produce, gas_price, welfare_produce, welfare_high, welfare_low)
+```
+
+Question 5
+
+Both groups divided in half
+```{r}
+Q_eq_5 = ((s_h/(s_h + s_l)*(y_l*0.5)) + (s_l/(s_h + s_l)*(y_h*0.5)))/((p_eq/Q_eq)-(s_h*s_l)/(s_h + s_l))
+
+p_eq_5 = (p_eq/Q_eq)*Q_eq_5
+
+Q_L_5 = (p_eq_5 - y_l*0.5)/s_l
+Q_H_5 = (p_eq- y_h*0.5)/s_h
+
+env_local_5 = Q_eq_5*1.5
+env_global_5 = Q_eq_5*0.5
+
+tibble(Q_eq_5,p_eq_5,Q_L_5, Q_H_5, env_local_5,env_global_5)
+```
+
+Question 6
+
+```{r}
+tax_6 = 7.29984
+Q_eq_6 = ((s_h/ (s_h + s_l)*y_l) + (s_l/ (s_h + s_l)*y_h) - tax_6) / ((p_eq/ Q_eq) - (s_h*s_l)/(s_h + s_l))
+
+env_local_6 = Q_eq_6*1.5
+
+env_damage_eliminated = env_local_6 - env_local_5
+```
+
